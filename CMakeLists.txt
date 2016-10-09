@@ -8,3 +8,6 @@ include_directories($(OpenCV_INCLUDE_DIRS))
 
 add_executable(descriptor descriptor.cpp popt_pp.h)
 target_link_libraries(descriptor ${OpenCV_LIBS} "-lpopt")
+
+add_executable(disparity disparity.cpp popt_pp.h)
+target_link_libraries(disparity ${OpenCV_LIBS} "-lpopt")
