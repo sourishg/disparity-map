@@ -6,8 +6,6 @@ using namespace cv;
 using namespace std;
 
 Mat img_left, img_right, img_left_disp, img_right_disp;
-int cur_left_x, cur_left_y;
-Mat desc_left, desc_right;
 
 long costF(Mat& left, Mat& right) {
   long cost = 0;
@@ -17,58 +15,53 @@ long costF(Mat& left, Mat& right) {
   return cost;
 }
 
+int getCorresPoint(Point p, Mat& desc, Mat& img, int maxd) {
+  long minCost = 1e9;
+  int chosen_i = 0;
+  OrbDescriptorExtractor extractor;
+  Mat desc2;
+  for (int i = max(0,p.x-maxd); i < min(img.cols,p.x+maxd); i++) {
+    vector<KeyPoint> kp;
+    kp.push_back(KeyPoint(i,p.y,1));
+    extractor.compute(img, kp, desc2);
+    if (desc2.empty())
+      continue;
+    long cost = costF(desc, desc2);
+    if (cost < minCost) {
+      minCost = cost;
+      chosen_i = i;
+    }
+  }
+  return chosen_i;
+}
+
 void mouseClickRight(int event, int x, int y, int flags, void* userdata) {
   if (event == EVENT_LBUTTONDOWN) {
-    cout << "------- CALLED COST --------" << endl;
-    OrbDescriptorExtractor extractor;
-    vector<KeyPoint> kp;
-    Mat desc_right;
-    kp.push_back(KeyPoint(x, y, 1));
-    extractor.compute(img_right, kp, desc_right);
-    cout << "Left: " << cur_left_x << ", " << cur_left_y << endl;
-    cout << "Right: " << x << ", " << y << endl;
-    cout << "Left desc: " << desc_left << endl;
-    cout << "Right desc: " << desc_right << endl;
-    cout << "Cost: " << costF(desc_left, desc_right) << endl;
   }
 }
 
 void mouseClickLeft(int event, int x, int y, int flags, void* userdata) {
   if (event == EVENT_LBUTTONDOWN) {
-    /*
-    cout << "------- CHANGED REF --------" << endl;
-    cur_left_x = x;
-    cur_left_y = y;
     OrbDescriptorExtractor extractor;
     vector<KeyPoint> kp;
-    kp.push_back(KeyPoint(x, y, 1));
-    extractor.compute(img_left, kp, desc_left);
-    cout << "Changed left ref: " << x << ", " << y << endl;
-    */
-    OrbDescriptorExtractor extractor;
-    vector<KeyPoint> kp;
+    Mat desc_left;
     kp.push_back(KeyPoint(x, y, 1));
     extractor.compute(img_left, kp, desc_left);
     if (desc_left.empty())
       return;
+    int right_i = getCorresPoint(Point(x,y), desc_left, img_right, 70);
+    if (right_i == 0)
+      return;
+    Mat desc_right;
+    vector<KeyPoint> kpr;
+    kpr.push_back(KeyPoint(right_i,y,1));
+    extractor.compute(img_right, kpr, desc_right);
+    int left_i = getCorresPoint(Point(right_i,y), desc_right, img_left, 70);
+    cout << "Left right diff: " << abs(left_i-x) << endl;
+    if (abs(left_i-x) > 5)
+      return;
     circle(img_left_disp, Point(x,y), 3, Scalar(255,0,0), 1, 8, 0);
-    long minCost = 1e9;
-    int chosen_i = 0;
-    for (int i = 0; i < img_left.cols; i++) {
-      vector<KeyPoint> kp_r;
-      kp_r.push_back(KeyPoint(i,y,1));
-      extractor.compute(img_right, kp_r, desc_right);
-      if (desc_right.empty())
-        continue;
-      long cost = costF(desc_left, desc_right);
-      if (cost < minCost) {
-        minCost = cost;
-        chosen_i = i;
-      }
-    }
-    if (chosen_i != 0) {
-      circle(img_right_disp, Point(chosen_i,y), 3, Scalar(255,0,0), 1, 8, 0);
-    }
+    circle(img_right_disp, Point(right_i,y), 3, Scalar(255,0,0), 1, 8, 0);
   }
 }
 
