@@ -6,11 +6,11 @@ using namespace cv;
 using namespace std;
 
 Mat img_left, img_right, img_disp;
-int niter = 20;
+int niter = 30;
 int window_size = 5;
-int ndisp = 15;
-int smooth_lambda = 40;
-int smooth_trunc = 4;
+int ndisp = 20;
+int smooth_lambda = 20;
+int smooth_trunc = 5;
 
 const int MAX_LABELS = 70;
 
@@ -74,7 +74,7 @@ void initCost(MarkovRandomField& mrf) {
 }
 
 void passMessage(MarkovRandomField& mrf, int x, int y, DIR dir) {
-  double updated_msg[70];
+  double updated_msg[MAX_LABELS];
   double norm_const = 0;
   int width = mrf.width;
   for (int i = 0; i < ndisp; i++) {
@@ -85,7 +85,7 @@ void passMessage(MarkovRandomField& mrf, int x, int y, DIR dir) {
       if (dir != LEFT)
         cost *= mrf.img[y*width+x].msg[LEFT][j];
       if (dir != RIGHT)
-        cost *= mrf.img[y*width+x].msg[LEFT][j];
+        cost *= mrf.img[y*width+x].msg[RIGHT][j];
       if (dir != UP)
         cost *= mrf.img[y*width+x].msg[UP][j];
       if (dir != DOWN)
@@ -197,9 +197,9 @@ void computeDisparityMap(MarkovRandomField& mrf) {
   initCost(mrf);
   for (int i = 0; i < niter; i++) {
     propagate(mrf, RIGHT);
+    propagate(mrf, DOWN);
     propagate(mrf, LEFT);
     propagate(mrf, UP);
-    propagate(mrf, DOWN);
     
     double energy = MAP(mrf);
     cout << "Iter " << (i+1) << ": " << energy << endl;
@@ -224,12 +224,15 @@ int main(int argc, char const *argv[])
   MarkovRandomField mrf;
   computeDisparityMap(mrf);
   
+  imwrite(argv[3], img_disp);
+  return 0;
+  
   while (1) {
     imshow("IMG-LEFT", img_left);
     imshow("IMG-RIGHT", img_right);
     imshow("IMG-DISP", img_disp);
     if (waitKey(30) > 0) {
-      imwrite("disp-lbp.png", img_disp);
+      //imwrite("disp-lbp.png", img_disp);
       break;
     }
   }
