@@ -17,3 +17,6 @@ target_link_libraries(disparity-lbp ${OpenCV_LIBS} "-lpopt")
 
 add_executable(disparity-orb disparity-orb.cpp popt_pp.h)
 target_link_libraries(disparity-orb ${OpenCV_LIBS} "-lpopt")
+
+add_executable(reconstruct reconstruct.cpp popt_pp.h)
+target_link_libraries(reconstruct ${OpenCV_LIBS} "-lpopt")
