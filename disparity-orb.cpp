@@ -35,7 +35,7 @@ long costF(const Mat& left, const Mat& right) {
 }
 
 int getCorresPointRight(Point p, int ndisp) {
-  int w = 7;
+  int w = 2;
   long minCost = 1e9;
   int chosen_i = 0;
   int x0r = kpr[0].pt.x;
@@ -66,7 +66,7 @@ int getCorresPointRight(Point p, int ndisp) {
 }
 
 int getCorresPointLeft(Point p, int ndisp) {
-  int w = 7;
+  int w = 2;
   long minCost = 1e9;
   int chosen_i = 0;
   int x0r = kpr[0].pt.x;
@@ -135,8 +135,6 @@ int main(int argc, char const *argv[])
   img_right = imread(argv[2], 1);
   cacheDescriptorVals();
   computeDisparityMapORB(20);
-  imwrite(argv[3], img_disp);
-  return 0;
   //namedWindow("IMG-LEFT", 1);
   //namedWindow("IMG-RIGHT", 1);
   while (1) {
@@ -144,7 +142,7 @@ int main(int argc, char const *argv[])
     imshow("IMG-RIGHT", img_right);
     imshow("IMG-DISP", img_disp);
     if (waitKey(30) > 0) {
-      //imwrite(argv[3], img_disp);
+      imwrite(argv[3], img_disp);
       break;
     }
   }

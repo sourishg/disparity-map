@@ -1,6 +1,7 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <opencv2/features2d/features2d.hpp>
+#include <fstream>
 
 using namespace cv;
 using namespace std;
@@ -30,7 +31,9 @@ long costF(const Mat& left, const Mat& right) {
 }
 
 int getCorresPoint(Point p, Mat& img, int ndisp) {
-  int w = 2;
+  ofstream mfile;
+  mfile.open("cost.txt");
+  int w = 5;
   long minCost = 1e9;
   int chosen_i = 0;
   int x0r = kpr[0].pt.x;
@@ -50,6 +53,8 @@ int getCorresPoint(Point p, Mat& img, int ndisp) {
         cost += costF(img_left_desc.row(idxl), img_right_desc.row(idxr));
       }
     }
+    cost = cost / ((2*w+1)*(2*w+1));
+    mfile << (p.x-i) << " " << cost << endl;
     if (cost < minCost) {
       minCost = cost;
       chosen_i = i;
@@ -59,28 +64,16 @@ int getCorresPoint(Point p, Mat& img, int ndisp) {
   return chosen_i;
 }
 
-void mouseClickRight(int event, int x, int y, int flags, void* userdata) {
-  if (event == EVENT_LBUTTONDOWN) {
-  }
-}
-
 void mouseClickLeft(int event, int x, int y, int flags, void* userdata) {
   if (event == EVENT_LBUTTONDOWN) {
     if (!isLeftKeyPoint(x,y))
       return;
     int right_i = getCorresPoint(Point(x,y), img_right, 20);
-    /*
-    Mat desc_right;
-    vector<KeyPoint> kpr;
-    kpr.push_back(KeyPoint(right_i,y,1));
-    extractor.compute(img_right, kpr, desc_right);
-    int left_i = getCorresPoint(Point(right_i,y), desc_right, img_left, 70);
-    cout << "Left right diff: " << abs(left_i-x) << endl;
-    if (abs(left_i-x) > 5)
-      return;
-    */
-    circle(img_left_disp, Point(x,y), 3, Scalar(255,0,0), 1, 8, 0);
-    circle(img_right_disp, Point(right_i,y), 3, Scalar(255,0,0), 1, 8, 0);
+    Scalar color = Scalar(255,255,0);
+    circle(img_left_disp, Point(x,y), 4, color, -1, 8, 0);
+    circle(img_right_disp, Point(right_i,y), 4, color, -1, 8, 0);
+    line(img_right_disp, Point(0,y), Point(img_right.cols,y), 
+         color, 1, 8, 0);
     cout << "Left: " << x << " Right: " << right_i << endl;
   }
 }
@@ -103,17 +96,16 @@ int main(int argc, char const *argv[])
   img_right = imread(argv[2]);
   img_left_disp = imread(argv[1]);
   img_right_disp = imread(argv[2]);
-  //OrbFeatureDetector detector(500, 1.2f, 8, 15, ORB::HARRIS_SCORE);
-  //detector.detect(img, kp);
   cacheDescriptorVals();
   namedWindow("IMG-LEFT", 1);
   namedWindow("IMG-RIGHT", 1);
   setMouseCallback("IMG-LEFT", mouseClickLeft, NULL);
-  setMouseCallback("IMG-RIGHT", mouseClickRight, NULL);
   while (1) {
     imshow("IMG-LEFT", img_left_disp);
     imshow("IMG-RIGHT", img_right_disp);
     if (waitKey(30) > 0) {
+      imwrite("epi-left.png", img_left_disp);
+      imwrite("epi-right.png", img_right_disp);
       break;
     }
   }
