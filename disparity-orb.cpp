@@ -8,6 +8,7 @@ using namespace std;
 Mat img_left, img_right, img_disp;
 Mat img_left_desc, img_right_desc;
 vector< KeyPoint > kpl, kpr;
+int w = 0;
 
 bool inImg(Mat& img, int x, int y) {
   if (x >= 0 && x < img.cols && y >= 0 && y < img.rows)
@@ -26,35 +27,65 @@ bool isRightKeyPoint(int i, int j) {
           && j >= kpr[0].pt.y && j <= kpr[n-1].pt.y);
 }
 
-long costF(const Mat& left, const Mat& right) {
-  long cost = 0;
-  for (int i = 0; i < 32; i++) {
-    cost += abs(left.at<uchar>(0,i)-right.at<uchar>(0,i));
-  }
-  return cost;
-}
-
-int getCorresPointRight(Point p, int ndisp) {
-  int w = 2;
-  long minCost = 1e9;
-  int chosen_i = 0;
+long descCost(Point leftpt, Point rightpt, int w) {
   int x0r = kpr[0].pt.x;
   int y0r = kpr[0].pt.y;
   int ynr = kpr[kpr.size()-1].pt.y;
   int x0l = kpl[0].pt.x;
   int y0l = kpl[0].pt.y;
   int ynl = kpl[kpl.size()-1].pt.y;
-  for (int i = p.x-ndisp; i <= p.x; i++) {
-    long cost = 0;
-    for (int j = -w; j <= w; j++) {
-      for (int k = -w; k <= w; k++) {
-        if (!isLeftKeyPoint(p.x+j, p.y+k) || !isRightKeyPoint(i+j, p.y+k))
-          continue;
-        int idxl = (p.x+j-x0l)*(ynl-y0l+1)+(p.y+k-y0l);
-        int idxr = (i+j-x0r)*(ynr-y0r+1)+(p.y+k-y0r);
-        cost += costF(img_left_desc.row(idxl), img_right_desc.row(idxr));
-      }
+  long cost = 0;
+  for (int j = -w; j <= w; j++) {
+    for (int k = -w; k <= w; k++) {
+      if (!isLeftKeyPoint(leftpt.x+j, leftpt.y+k) || 
+          !isRightKeyPoint(rightpt.x+j, rightpt.y+k))
+        continue;
+      int idxl = (leftpt.x+j-x0l)*(ynl-y0l+1)+(leftpt.y+k-y0l);
+      int idxr = (rightpt.x+j-x0r)*(ynr-y0r+1)+(rightpt.y+k-y0r);
+      cost += norm(img_left_desc.row(idxl), img_right_desc.row(idxr), CV_L1);
     }
+  }
+  return cost / ((2*w+1)*(2*w+1));
+}
+
+double descCostNCC(Point leftpt, Point rightpt, int w) {
+  int x0r = kpr[0].pt.x;
+  int y0r = kpr[0].pt.y;
+  int ynr = kpr[kpr.size()-1].pt.y;
+  int x0l = kpl[0].pt.x;
+  int y0l = kpl[0].pt.y;
+  int ynl = kpl[kpl.size()-1].pt.y;
+  double costL = 0;
+  double costR = 0;
+  double cost = 0;
+  int idxl0 = (leftpt.x-x0l)*(ynl-y0l+1)+(leftpt.y-y0l);
+  int idxr0 = (rightpt.x-x0r)*(ynr-y0r+1)+(rightpt.y-y0r);
+  for (int j = -w; j <= w; j++) {
+    for (int k = -w; k <= w; k++) {
+      if (!isLeftKeyPoint(leftpt.x+j, leftpt.y+k) || 
+          !isRightKeyPoint(rightpt.x+j, rightpt.y+k))
+        continue;
+      int idxl = (leftpt.x+j-x0l)*(ynl-y0l+1)+(leftpt.y+k-y0l);
+      int idxr = (rightpt.x+j-x0r)*(ynr-y0r+1)+(rightpt.y+k-y0r);
+      double d1 = norm(img_left_desc.row(idxl), img_left_desc.row(idxl0), 
+                       CV_L1);
+      double d2 = norm(img_right_desc.row(idxr), img_right_desc.row(idxr0), 
+                       CV_L1);
+      costL += d1*d1;
+      costR += d2*d2;
+      cost += d1*d2;
+    }
+  }
+  cost /= (sqrt(costL) * sqrt(costR));
+  cout << "ncc: " << cost << endl;
+  return cost;
+}
+
+int getCorresPointRight(Point p, int ndisp) {
+  long minCost = 1e9;
+  int chosen_i = 0;
+  for (int i = p.x-ndisp; i <= p.x; i++) {
+    long cost = descCost(p, Point(i,p.y), w);
     if (cost < minCost) {
       minCost = cost;
       chosen_i = i;
@@ -63,29 +94,26 @@ int getCorresPointRight(Point p, int ndisp) {
   if (minCost == 0)
     return p.x;
   return chosen_i;
+  /*
+  double corr = -10;
+  int chosen_i = 0;
+  for (int i = p.x-ndisp; i <= p.x; i++) {
+    double cost = descCostNCC(p, Point(i,p.y), w);
+    if (cost > corr) {
+      corr = cost;
+      chosen_i = i;
+    }
+  }
+  cout << "corr: " << corr << endl;
+  return chosen_i;
+  */
 }
 
 int getCorresPointLeft(Point p, int ndisp) {
-  int w = 2;
   long minCost = 1e9;
   int chosen_i = 0;
-  int x0r = kpr[0].pt.x;
-  int y0r = kpr[0].pt.y;
-  int ynr = kpr[kpr.size()-1].pt.y;
-  int x0l = kpl[0].pt.x;
-  int y0l = kpl[0].pt.y;
-  int ynl = kpl[kpl.size()-1].pt.y;
   for (int i = p.x; i <= p.x+ndisp; i++) {
-    long cost = 0;
-    for (int j = -w; j <= w; j++) {
-      for (int k = -w; k <= w; k++) {
-        if (!isRightKeyPoint(p.x+j, p.y+k) || !isLeftKeyPoint(i+j, p.y+k))
-          continue;
-        int idxr = (p.x+j-x0l)*(ynl-y0l+1)+(p.y+k-y0l);
-        int idxl = (i+j-x0r)*(ynr-y0r+1)+(p.y+k-y0r);
-        cost += costF(img_left_desc.row(idxl), img_right_desc.row(idxr));
-      }
-    }
+    long cost = descCost(Point(i,p.y), p, w);
     if (cost < minCost) {
       minCost = cost;
       chosen_i = i;
@@ -98,27 +126,27 @@ int getCorresPointLeft(Point p, int ndisp) {
 
 void computeDisparityMapORB(int ndisp) {
   img_disp = Mat(img_left.rows, img_left.cols, CV_8UC1, Scalar(0));
-  int x0 = kpl[0].pt.x;
-  int y0 = kpl[0].pt.y;
-  int yn = kpl[kpl.size()-1].pt.y;
-  for (int i = 0; i < img_left.cols; i++) {
+  for (int i = ndisp+1; i < img_left.cols; i++) {
     for (int j = 0; j < img_left.rows; j++) {
       cout << i << ", " << j << endl;
       if (!isLeftKeyPoint(i,j))
         continue;
       int right_i = getCorresPointRight(Point(i,j), ndisp);
       // left-right check
+      /*
       int left_i = getCorresPointLeft(Point(right_i,j), ndisp);
-      if (abs(left_i-i) > 5)
+      if (abs(left_i-i) > 4)
         continue;
+      */
       int disparity = abs(i - right_i);
-      img_disp.at<uchar>(j,i) = disparity * (255. / ndisp);
+      img_disp.at<uchar>(j,i) = disparity;
     }
   }
 }
 
 void cacheDescriptorVals() {
   OrbDescriptorExtractor extractor;
+  //BriefDescriptorExtractor extractor;
   for (int i = 0; i < img_left.cols; i++) {
     for (int j = 0; j < img_left.rows; j++) {
       kpl.push_back(KeyPoint(i,j,1));
@@ -129,12 +157,20 @@ void cacheDescriptorVals() {
   extractor.compute(img_right, kpr, img_right_desc);
 }
 
+void preprocess(Mat& img) {
+  Mat dst;
+  bilateralFilter(img, dst, 10, 15, 15);
+  img = dst.clone();
+}
+
 int main(int argc, char const *argv[])
 {
   img_left = imread(argv[1], 1);
   img_right = imread(argv[2], 1);
+  //preprocess(img_left);
+  //preprocess(img_right);
   cacheDescriptorVals();
-  computeDisparityMapORB(20);
+  computeDisparityMapORB(40);
   //namedWindow("IMG-LEFT", 1);
   //namedWindow("IMG-RIGHT", 1);
   while (1) {

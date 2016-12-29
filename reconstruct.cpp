@@ -11,13 +11,13 @@ Mat Q, XR, XT;
 void publishPointCloud(Mat& left, Mat& dmap, ofstream& obj_file) {
   Mat V = Mat(4, 1, CV_64FC1);
   Mat pos = Mat(4, 1, CV_64FC1);
+  int ndisp = 40;
   for (int i = 0; i < dmap.cols; i++) {
     for (int j = 0; j < dmap.rows; j++) {
-      int d = dmap.at<uchar>(j,i);
+      int d = dmap.at<uchar>(j,i) * ((float)ndisp / 255.);
       // if low disparity, then ignore
-      if (d < 2) {
+      if (d < 2)
         continue;
-      }
       // V is the vector to be multiplied to Q to get
       // the 3D homogenous coordinates of the image point
       V.at<double>(0,0) = (double)(i);

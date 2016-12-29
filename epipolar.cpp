@@ -104,8 +104,6 @@ int main(int argc, char const *argv[])
     imshow("IMG-LEFT", img_left_disp);
     imshow("IMG-RIGHT", img_right_disp);
     if (waitKey(30) > 0) {
-      imwrite("epi-left.png", img_left_disp);
-      imwrite("epi-right.png", img_right_disp);
       break;
     }
   }
